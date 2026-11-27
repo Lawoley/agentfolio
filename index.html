@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AgentFolio — the public record for Agent ID holders</title>
-<meta name="description" content="AgentFolio is the opt-in, on-chain profile and reputation layer for SPACE ID Agent ID (name.ai) holders on BNB Chain. Publish your folio, check in daily, earn endorsements from other holders.">
+<meta name="description" content="AgentFolio is the opt-in, on-chain profile and reputation layer for SPACE ID Agent ID (name.ai) holders on BNB Chain. Publish your folio, check in daily, earn endorsements from other holders — and seal public statements under your name with AgentSeal, so anyone can verify you stand behind your words.">
 <style>
   :root { --bg:#0b0e14; --card:#141926; --line:#232b3d; --text:#e8ecf3; --muted:#9aa7bd; --accent:#f0b90b; --accent-text:#1a1405; --ok:#3fb97f; --bad:#e05c5c; }
   * { box-sizing:border-box; }
@@ -18,6 +18,7 @@
   .row { display:flex; gap:8px; }
   .row.wrap { flex-wrap:wrap; }
   input[type=text], select { flex:1; min-width:0; padding:12px; font-size:16px; border-radius:10px; border:1px solid var(--line); background:#0d1119; color:var(--text); }
+  textarea { width:100%; padding:12px; font-size:16px; line-height:1.45; border-radius:10px; border:1px solid var(--line); background:#0d1119; color:var(--text); font-family:inherit; resize:vertical; }
   select { flex:0 1 auto; }
   button { padding:12px 16px; font-size:16px; font-weight:600; border:0; border-radius:10px; background:var(--accent); color:var(--accent-text); cursor:pointer; }
   button:disabled { opacity:.45; cursor:default; }
@@ -52,12 +53,31 @@
 <body>
 <div class="wrap">
   <h1>Agent<span class="ai">Folio</span></h1>
-  <p class="sub">Your <b>name.ai</b> is your identity. AgentFolio is your public record. Holders of a SPACE ID Agent ID on BNB Chain publish a folio here, check in daily to prove the identity is active, and earn endorsements from other holders. Everything is on-chain and opt-in: members present themselves — AgentFolio never looks up the wallet behind anyone's name.</p>
+  <p class="sub">Your <b>name.ai</b> is your identity. AgentFolio is your public record. Holders of a SPACE ID Agent ID on BNB Chain publish a folio here, check in daily to prove the identity is active, and earn endorsements from other holders. Everything is on-chain and opt-in: members present themselves — AgentFolio never looks up the wallet behind anyone's name. And with <b>AgentSeal</b>, a holder can sign a public statement with that name — sealed on-chain, verifiable by anyone, revocable only by its author.</p>
 
   <div class="stats">
     <div class="stat"><div class="n" id="statMembers">…</div><div class="l">folios in the directory</div></div>
     <div class="stat"><div class="n" id="statCheckins">…</div><div class="l">total check-ins</div></div>
     <div class="stat"><div class="n" id="statGoal">…</div><div class="l">holders to first milestone</div></div>
+    <div class="stat"><div class="n" id="statSeals">…</div><div class="l">statements sealed</div></div>
+  </div>
+
+  <div class="card">
+    <h2>AgentSeal — sign it with your Agent ID</h2>
+    <p class="sub" style="margin-bottom:10px">Write a public statement — an offer, a commitment, a claim of authorship. AgentSeal anchors its fingerprint on-chain under your <b>name.ai</b>, so anyone can check that the owner of your name really stands behind those exact words. Your name cannot be transferred or faked, and neither can your seal. Only Agent ID holders can seal, and only under their own name — the contract checks both against the official registry. You can revoke a seal at any time; a revoked seal stays visible, marked revoked, so a check never silently changes its answer.</p>
+    <div id="sealArea"></div>
+  </div>
+
+  <div class="card" id="verifySealCard">
+    <h2>Verify a seal</h2>
+    <p class="sub" style="margin-bottom:10px">Paste a statement to check whether it was sealed, and by whom. The fingerprint is computed in your browser — the words never leave this page — and the seal itself is read straight from the chain. Or open a verify link and the fingerprint arrives filled in.</p>
+    <div class="field"><label for="vfText">Statement, word for word as its author wrote it</label><textarea id="vfText" rows="3" placeholder="Paste the exact statement text…"></textarea></div>
+    <div class="row wrap" style="margin-bottom:10px"><button id="vfGo" class="small">Check this statement</button></div>
+    <div class="row">
+      <input id="vfHash" type="text" placeholder="or paste a seal fingerprint (0x…) or verify link" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <button id="vfGoHash">Look up</button>
+    </div>
+    <div id="vfOut"></div>
   </div>
 
   <div class="card">
@@ -102,7 +122,7 @@
 
   <p class="foot">
     AgentFolio is opt-in end to end. The directory lists only holders who chose to publish a folio or check in;
-    it never resolves or exposes the wallet behind a name that has not joined. The contract holds no funds, has no
+    it never resolves or exposes the wallet behind a name that has not joined. The contracts hold no funds, have no
     owner and no admin functions, and can never move your assets — every action is a transaction you confirm in
     your own wallet, and a check-in costs a few cents of BNB gas, paid to the network. Agent IDs themselves are
     claimed only inside the Binance App (Wallet → homepage banner → Agent ID). No sign-up, no tracking, nothing to buy.
@@ -114,6 +134,7 @@
 /* ============================== CONFIG ============================== */
 const REGISTRY = "0x60b9262456de011f7d15a54cdd8c48baaa8b022f"; // SPACE ID Agent ID HandleRegistry, BNB Chain
 const FOLIO = "0x7CFF187762Af7A2A2befA5cA171C96c28310EaA6"; // AgentFolio contract, deployed 23 Nov 2026
+const SEAL = "0x8E8a9cBE9a09cdC8B825E05a3F5D2452a515dc8F"; // AgentSeal contract — deployed 2026-11-27, tx 0x22f0b76bb322f8df8628b64b9173bd459b86e6698faa8d52f9a6f3c2134cde61
 const BSC_CHAIN_ID = "0x38"; // 56
 const RPCS = ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com", "https://bsc-mainnet.public.blastapi.io"];
 const ARCHIVE_RPC = "https://bsc-mainnet.public.blastapi.io"; // archive node, used for registration-date search
@@ -127,7 +148,9 @@ const SEL = {
   recordOf: "0xc06ac6a3", directorySize: "0x069d3f43", directoryPage: "0xb379d4fd",
   totalCheckIns: "0xa563eaa3", setProfile: "0xdcc95c1f", endorse: "0x6ea5511f",
   unendorse: "0xd100dab3", hasEndorsed: "0x1edd910d", profileOf: "0x2f8eb9cb",
-  reputationOf: "0xdb89c044", isVerifiedActive: "0xd3e59437", isMember: "0xa230c524"
+  reputationOf: "0xdb89c044", isVerifiedActive: "0xd3e59437", isMember: "0xa230c524",
+  agentSeal: "0x80262338", revokeSeal: "0xb75c7dc6", verifySeal: "0xf5494376",
+  sealsOf: "0x6b4ad00e", totalSeals: "0xd9ff054e"
 };
 const encAddr = a => a.toLowerCase().replace("0x", "").padStart(64, "0");
 const encUint = n => BigInt(n).toString(16).padStart(64, "0");
@@ -351,6 +374,211 @@ async function verifyAddress() {
 $("vGo").addEventListener("click", verifyAddress);
 $("vAddr").addEventListener("keydown", e => { if (e.key === "Enter") verifyAddress(); });
 
+/* ============================== AgentSeal ============================== */
+/* KECCAK-BEGIN */
+/* Keccak-256 (original Keccak padding, domain byte 0x01 — not NIST SHA-3),
+   pure JS on BigInt lanes. The AgentSeal statement fingerprint is
+   keccak256 of the exact statement text encoded as UTF-8. Verified against
+   the chain tooling in tools/site-test.js. */
+const K256_MASK = (1n << 64n) - 1n;
+const K256_RC = [0x0000000000000001n, 0x0000000000008082n, 0x800000000000808an, 0x8000000080008000n, 0x000000000000808bn, 0x0000000080000001n, 0x8000000080008081n, 0x8000000000008009n, 0x000000000000008an, 0x0000000000000088n, 0x0000000080008009n, 0x000000008000000an, 0x000000008000808bn, 0x800000000000008bn, 0x8000000000008089n, 0x8000000000008003n, 0x8000000000008002n, 0x8000000000000080n, 0x000000000000800an, 0x800000008000000an, 0x8000000080008081n, 0x8000000000008080n, 0x0000000080000001n, 0x8000000080008008n];
+const K256_RHO = [0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14]; // index x + 5*y
+function k256rot(v, n) { return n === 0 ? v : (((v << BigInt(n)) | (v >> BigInt(64 - n))) & K256_MASK); }
+function k256f(A) {
+  for (let round = 0; round < 24; round++) {
+    const C = [], D = [];
+    for (let x = 0; x < 5; x++) C[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
+    for (let x = 0; x < 5; x++) D[x] = C[(x + 4) % 5] ^ k256rot(C[(x + 1) % 5], 1);
+    for (let i = 0; i < 25; i++) A[i] ^= D[i % 5];
+    const B = new Array(25).fill(0n);
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) {
+      B[y + 5 * ((2 * x + 3 * y) % 5)] = k256rot(A[x + 5 * y], K256_RHO[x + 5 * y]);
+    }
+    for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) {
+      A[x + 5 * y] = B[x + 5 * y] ^ ((~B[((x + 1) % 5) + 5 * y] & K256_MASK) & B[((x + 2) % 5) + 5 * y]);
+    }
+    A[0] ^= K256_RC[round];
+  }
+}
+function keccak256Hex(bytes) {
+  const RATE = 136;
+  const A = new Array(25).fill(0n);
+  const q = RATE - (bytes.length % RATE);
+  const padded = new Uint8Array(bytes.length + q);
+  padded.set(bytes);
+  if (q === 1) padded[bytes.length] = 0x81;
+  else { padded[bytes.length] = 0x01; padded[padded.length - 1] = 0x80; }
+  for (let off = 0; off < padded.length; off += RATE) {
+    for (let i = 0; i < RATE; i++) {
+      const b = padded[off + i];
+      if (b) A[i >> 3] ^= BigInt(b) << BigInt(8 * (i & 7));
+    }
+    k256f(A);
+  }
+  let hex = "0x";
+  for (let i = 0; i < 32; i++) hex += Number((A[i >> 3] >> BigInt(8 * (i & 7))) & 0xffn).toString(16).padStart(2, "0");
+  return hex;
+}
+/* KECCAK-END */
+
+let sealHandle = null;
+const sealLink = hash => location.origin + location.pathname + "#/seal/" + hash;
+const encSealCall = (hash, name) => SEL.agentSeal + hash.slice(2) + encUint(64) + strTail(name);
+function decVerifySeal(hex) {
+  return { sealer: decAddr(hex, 0), name: decStrAt(hex, Number(decUint(hex, 1))), sealedAt: decUint(hex, 2), revoked: decUint(hex, 3) > 0n, exists: decUint(hex, 4) > 0n };
+}
+function decHashArray(hex) {
+  const start = Number(decUint(hex, 0)) / 32;
+  const len = Number(decUint(hex, start));
+  const out = [];
+  for (let i = 0; i < len; i++) out.push("0x" + word(hex, start + 1 + i));
+  return out;
+}
+async function sendSealTx(data) {
+  const txHash = await window.ethereum.request({ method: "eth_sendTransaction", params: [{ from: myAccount, to: SEAL, data }] });
+  const wait = async () => {
+    const r = await rpc("eth_getTransactionReceipt", [txHash]);
+    if (r) { renderSeal(); loadSealStats(); }
+    else setTimeout(wait, 3000);
+  };
+  setTimeout(wait, 3000);
+  return txHash;
+}
+async function loadSealStats() {
+  const el = $("statSeals");
+  if (!el) return;
+  if (!SEAL) { el.textContent = "—"; return; }
+  try { el.textContent = Number(BigInt(await call(SEAL, SEL.totalSeals))); }
+  catch { el.textContent = "—"; }
+}
+async function renderSeal() {
+  const area = $("sealArea");
+  if (!area) return;
+  if (!SEAL) { area.innerHTML = '<p class="msg mut">AgentSeal is being deployed. Sealing opens the moment the contract is live.</p>'; return; }
+  if (!window.ethereum) {
+    area.innerHTML = '<p class="msg mut">Open this page inside a wallet browser (Binance Wallet, MetaMask or Trust Wallet) to seal a statement. Verifying a seal below works in any browser.</p>';
+    return;
+  }
+  if (!myAccount) {
+    area.innerHTML = '<button id="sealConnectBtn">Connect wallet</button><div id="sealMsg"></div>';
+    $("sealConnectBtn").addEventListener("click", connect);
+    return;
+  }
+  try {
+    const holder = BigInt(await call(SEAL, SEL.isHolder + encAddr(myAccount))) > 0n;
+    const handle = decStr(await call(REGISTRY, SEL.handleOf + encAddr(myAccount)));
+    sealHandle = handle || null;
+    if (!holder || !handle) {
+      area.innerHTML = kv("Your wallet", esc(myAccount)) + '<p class="msg bad">This wallet holds no Agent ID, so it cannot seal. Agent IDs are claimed only in the Binance App (Wallet → homepage banner → Agent ID). Switch to the wallet that holds your name.ai.</p><div id="sealMsg"></div>';
+      return;
+    }
+    let html = kv("Sealing as", "<b>" + esc(handle) + ".ai</b>");
+    html += '<div class="field"><label for="sealText">Your public statement. Anyone will be able to check that these exact words were sealed under your name.</label><textarea id="sealText" rows="4" maxlength="1000" placeholder="e.g. giuseppino.ai built AgentFolio, and we stand behind every line of it."></textarea></div>';
+    html += '<div class="row wrap"><button id="sealBtn" class="small">Seal this statement</button></div>';
+    html += '<p class="msg mut">Only the statement\'s fingerprint goes on-chain, not the words themselves. Sealing costs a few cents of BNB gas, paid to the network. Keep your exact wording safe — verification needs it word for word.</p>';
+    html += '<div id="sealMsg"></div><div id="mySeals"></div>';
+    area.innerHTML = html;
+    $("sealBtn").addEventListener("click", doSeal);
+    loadMySeals();
+  } catch (e) {
+    area.innerHTML = '<p class="msg bad">Could not load AgentSeal: ' + esc(e.message || e) + "</p>";
+  }
+}
+async function doSeal() {
+  const m = $("sealMsg"), btn = $("sealBtn");
+  const text = $("sealText").value;
+  if (!text.trim()) { m.className = "msg bad"; m.textContent = "Write a statement first."; return; }
+  const hash = keccak256Hex(new TextEncoder().encode(text));
+  try {
+    btn.disabled = true;
+    m.className = "msg mut"; m.textContent = "Confirm the seal in your wallet…";
+    const h = await sendSealTx(encSealCall(hash, sealHandle));
+    m.className = "msg ok";
+    m.innerHTML = 'Sealed under <b>' + esc(sealHandle) + '.ai</b>. <a href="' + scanTx(h) + '" target="_blank" rel="noopener">View on BscScan</a><br>Your verify link — anyone opening it can check this seal:<input type="text" readonly value="' + esc(sealLink(hash)) + '" onclick="this.select()" style="margin-top:6px;width:100%">';
+    loadMySeals();
+    loadSealStats();
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    m.className = "msg bad"; m.textContent = "Sealing failed: " + (e.message || e);
+  }
+}
+async function loadMySeals() {
+  const box = $("mySeals");
+  if (!box || !myAccount || !SEAL) return;
+  try {
+    const hashes = decHashArray(await call(SEAL, SEL.sealsOf + encAddr(myAccount)));
+    if (!hashes.length) { box.innerHTML = '<p class="msg mut">You have not sealed a statement yet.</p>'; return; }
+    let html = '<h3 style="font-size:15px;margin:14px 0 8px">Your seals</h3>';
+    for (const hx of hashes.slice().reverse()) {
+      const v = decVerifySeal(await call(SEAL, SEL.verifySeal + hx.slice(2)));
+      html += '<div class="member"><div class="head"><span class="name" style="font-size:13px">' + esc(hx.slice(0, 18)) + '…</span>' + (v.revoked ? '<span class="pill">revoked</span>' : '<span class="pill ok">valid</span>') + "</div>";
+      html += '<p class="meta">Sealed ' + esc(fmtDateTime(v.sealedAt)) + " under <b>" + esc(v.name) + ".ai</b> · " + '<a href="' + esc(sealLink(hx)) + '">verify link</a></p>';
+      if (!v.revoked) html += '<div class="actions"><button class="ghost revokeBtn" data-hash="' + esc(hx) + '">Revoke this seal</button></div>';
+      html += "</div>";
+    }
+    box.innerHTML = html;
+    box.querySelectorAll(".revokeBtn").forEach(b => b.addEventListener("click", () => doRevoke(b.getAttribute("data-hash"))));
+  } catch (e) {
+    box.innerHTML = '<p class="msg bad">Your seals failed to load: ' + esc(e.message || e) + "</p>";
+  }
+}
+async function doRevoke(hash) {
+  const m = $("sealMsg");
+  try {
+    if (m) { m.className = "msg mut"; m.textContent = "Confirm the revocation in your wallet…"; }
+    await sendSealTx(SEL.revokeSeal + hash.slice(2));
+    if (m) { m.className = "msg ok"; m.textContent = "Seal revoked. It stays on record, marked revoked."; }
+    loadMySeals();
+  } catch (e) {
+    if (m) { m.className = "msg bad"; m.textContent = "Revocation failed: " + (e.message || e); }
+  }
+}
+async function showSealResult(hash, statementText) {
+  const out = $("vfOut");
+  if (!SEAL) { out.innerHTML = '<p class="msg mut">AgentSeal is being deployed. Verification opens the moment the contract is live.</p>'; return; }
+  out.innerHTML = '<p class="msg mut">Reading the chain…</p>';
+  try {
+    const v = decVerifySeal(await call(SEAL, SEL.verifySeal + hash.slice(2)));
+    let html = kv("Fingerprint", "<code>" + esc(hash) + "</code>");
+    if (statementText != null) html += kv("Text check", "<b>match</b> — the words you pasted hash to exactly this fingerprint");
+    if (!v.exists) {
+      html += '<p class="msg bad">No seal exists for this fingerprint. It was never sealed under any Agent ID.</p>';
+      out.innerHTML = html;
+      return;
+    }
+    html += kv("Sealed by", "<b>" + esc(v.name) + ".ai</b>");
+    html += kv("Sealer wallet", '<a href="' + scanAddr(v.sealer) + '" target="_blank" rel="noopener">' + esc(v.sealer) + "</a>");
+    html += kv("Sealed at", esc(fmtDateTime(v.sealedAt)));
+    html += kv("Status", v.revoked ? '<span class="pill">revoked by its author</span>' : '<span class="pill ok">valid</span>');
+    html += '<p class="msg mut">A seal can only be made by the wallet that owns the name on it — the AgentSeal contract checks that ownership against the official Agent ID registry before it records anything.</p>';
+    out.innerHTML = html;
+  } catch (e) {
+    out.innerHTML = '<p class="msg bad">Verification failed: ' + esc(e.message || e) + "</p>";
+  }
+}
+function checkStatement() {
+  const text = $("vfText").value;
+  if (!text.trim()) { $("vfOut").innerHTML = '<p class="msg bad">Paste a statement first.</p>'; return; }
+  showSealResult(keccak256Hex(new TextEncoder().encode(text)), text);
+}
+function lookupFingerprint() {
+  const raw = $("vfHash").value.trim();
+  const m = raw.match(/0x[0-9a-fA-F]{64}/);
+  if (!m) { $("vfOut").innerHTML = '<p class="msg bad">Paste a full fingerprint (0x plus 64 hex characters), or a verify link that contains one.</p>'; return; }
+  showSealResult(m[0].toLowerCase(), null);
+}
+function routeSealLink() {
+  const m = (location.hash || "").match(/#\/seal\/(0x[0-9a-fA-F]{64})/);
+  if (!m) return;
+  const card = $("verifySealCard");
+  if (card && card.scrollIntoView) card.scrollIntoView();
+  showSealResult(m[1].toLowerCase(), null);
+}
+$("vfGo").addEventListener("click", checkStatement);
+$("vfGoHash").addEventListener("click", lookupFingerprint);
+$("vfHash").addEventListener("keydown", e => { if (e.key === "Enter") lookupFingerprint(); });
+if (window.addEventListener) window.addEventListener("hashchange", routeSealLink);
+
 /* ============================== your folio ============================== */
 let myAccount = null;
 async function sendTx(data) {
@@ -458,6 +686,7 @@ async function connect() {
     }
     myAccount = accounts[0].toLowerCase();
     await renderFolio();
+    renderSeal();
     await refreshEndorsements();
     renderDirectory();
   } catch (e) {
@@ -465,10 +694,13 @@ async function connect() {
   }
 }
 if (window.ethereum) {
-  window.ethereum.request({ method: "eth_accounts" }).then(a => { if (a && a.length) { myAccount = a[0].toLowerCase(); renderFolio(); refreshEndorsements().then(renderDirectory); } }).catch(() => {});
-  window.ethereum.on && window.ethereum.on("accountsChanged", a => { myAccount = a && a.length ? a[0].toLowerCase() : null; renderFolio(); refreshEndorsements().then(renderDirectory); });
+  window.ethereum.request({ method: "eth_accounts" }).then(a => { if (a && a.length) { myAccount = a[0].toLowerCase(); renderFolio(); renderSeal(); refreshEndorsements().then(renderDirectory); } }).catch(() => {});
+  window.ethereum.on && window.ethereum.on("accountsChanged", a => { myAccount = a && a.length ? a[0].toLowerCase() : null; renderFolio(); renderSeal(); refreshEndorsements().then(renderDirectory); });
 }
 renderFolio();
+renderSeal();
+loadSealStats();
+routeSealLink();
 loadDirectory();
 </script>
 </body>
